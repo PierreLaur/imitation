@@ -12,6 +12,7 @@ from policyopt import util
 import subprocess, tempfile, datetime
 def create_pbs_script(commands, outputfiles, jobname, queue, nodes, ppn):
     assert len(commands) == len(outputfiles)
+
     template = '''#!/bin/bash
 
 #PBS -l walltime=72:00:00,nodes={nodes}:ppn={ppn},mem=10gb
@@ -49,7 +50,24 @@ eval $cmd >>$outputfile 2>&1
         nodes=nodes,
         ppn=ppn)
 
-def runpbs(cmd_templates, outputfilenames, argdicts, jobname, queue, nodes, ppn, job_range=None, outputfile_dir=None, qsub_script_copy=None):
+
+## added lines
+def create_local_script(commands, outputfiles, jobname, queue, nodes, ppn):
+    assert len(commands) == len(outputfiles)
+    local_template = '''#!/bin/bash
+{cmds_str}
+'''
+    return local_template.format(
+        jobname=jobname,
+        queue=queue,
+        cmds_str='\n'.join(commands),
+        outputfiles_str='\n'.join(outputfiles),
+        nodes=nodes,
+        ppn=ppn)
+##
+
+
+def runpbs(cmd_templates, outputfilenames, argdicts, jobname, queue, nodes, ppn, job_range=None, outputfile_dir=None, qsub_script_copy=None, local_script_copy=None):
     assert len(cmd_templates) == len(outputfilenames) == len(argdicts)
     num_cmds = len(cmd_templates)
 
@@ -60,36 +78,64 @@ def runpbs(cmd_templates, outputfilenames, argdicts, jobname, queue, nodes, ppn,
         cmds.append(cmd_templates[i].format(**argdicts[i]))
         outputfiles.append(os.path.join(outputfile_dir, '{:04d}_{}'.format(i+1, outputfilenames[i])))
 
-    script = create_pbs_script(cmds, outputfiles, jobname, queue, nodes, ppn)
-    print script
+    ## added lines
+    local_script = create_local_script(cmds, outputfiles, jobname, queue, nodes, ppn)
+    print(local_script)
     with tempfile.NamedTemporaryFile(suffix='.sh') as f:
-        f.write(script)
+        f.write(local_script.encode('utf-8'))
         f.flush()
 
-        if job_range is not None:
-            assert len(job_range.split('-')) == 2, 'Invalid job range'
-            cmd = 'qsub -t %s %s' % (job_range, f.name)
-        else:
-            cmd = 'qsub -t %d-%d %s' % (1, len(cmds), f.name)
-
-        print 'Running command:', cmd
-        print 'ok ({} jobs)? y/n'.format(num_cmds)
-        if raw_input() == 'y':
+        cmd = 'bash '+ local_script_copy
+        print(('Running command:', cmd))
+        print(('ok ({} jobs)? y/n'.format(num_cmds)))
+        if input() == 'y':
             # Write a copy of the script
-            if qsub_script_copy is not None:
-                assert not os.path.exists(qsub_script_copy)
-                with open(qsub_script_copy, 'w') as fcopy:
-                    fcopy.write(script)
-                print 'qsub script written to {}'.format(qsub_script_copy)
-            # Run qsub
+            if local_script_copy is not None:
+                assert not os.path.exists(local_script_copy)
+                with open(local_script_copy, 'w') as fcopy:
+                    fcopy.write(local_script)
+                print(('local script written to {}'.format(local_script_copy)))
+            # Run local script
             subprocess.check_call(cmd, shell=True)
 
         else:
             raise RuntimeError('Canceled.')
+    ## 
+    ## deleted lines
+    # script = create_pbs_script(cmds, outputfiles, jobname, queue, nodes, ppn)
+    # print(script)
+    # with tempfile.NamedTemporaryFile(suffix='.sh') as f:
+    #     f.write(script.encode('utf-8'))
+    #     f.flush()
+
+    #     if job_range is not None:
+    #         assert len(job_range.split('-')) == 2, 'Invalid job range'
+    #         cmd = 'qsub -t %s %s' % (job_range, f.name)
+    #     else:
+    #         ## added lines
+    #         cmd = 'bash '+ local_script_copy
+    #         ##
+    #         ## deleted lines
+    #         # cmd = 'qsub -t %d-%d %s' % (1, len(cmds), f.name)
+    #         ##
+    #     print(('Running command:', cmd))
+    #     print(('ok ({} jobs)? y/n'.format(num_cmds)))
+    #     if input() == 'y':
+    #         # Write a copy of the script
+    #         if qsub_script_copy is not None:
+    #             assert not os.path.exists(qsub_script_copy)
+    #             with open(qsub_script_copy, 'w') as fcopy:
+    #                 fcopy.write(script)
+    #             print(('qsub script written to {}'.format(qsub_script_copy)))
+    #         # Run qsub
+    #         subprocess.check_call(cmd, shell=True)
+
+    #     else:
+    #         raise RuntimeError('Canceled.')
+    ##
 
 
-
-def load_trained_policy_and_mdp(env_name, policy_state_str):
+def load_trained_policy_and_mdp(env_name, policy_state_str,render=False):
     import gym
     import policyopt
     from policyopt import nn, rl
@@ -97,14 +143,14 @@ def load_trained_policy_and_mdp(env_name, policy_state_str):
 
     # Load the saved state
     policy_file, policy_key = util.split_h5_name(policy_state_str)
-    print 'Loading policy parameters from %s in %s' % (policy_key, policy_file)
+    print(('Loading policy parameters from %s in %s' % (policy_key, policy_file)))
     with h5py.File(policy_file, 'r') as f:
         train_args = json.loads(f.attrs['args'])
 
     # Initialize the MDP
-    print 'Loading environment', env_name
-    mdp = rlgymenv.RLGymMDP(env_name)
-    print 'MDP observation space, action space sizes: %d, %d\n' % (mdp.obs_space.dim, mdp.action_space.storage_size)
+    print(('Loading environment', env_name))
+    mdp = rlgymenv.RLGymMDP(env_name,render)
+    print(('MDP observation space, action space sizes: %d, %d\n' % (mdp.obs_space.dim, mdp.action_space.storage_size)))
 
     # Initialize the policy
     nn.reset_global_scope()
@@ -145,18 +191,17 @@ def gen_taskname2outfile(spec, assert_not_exists=False):
     return taskname2outfile
 
 
-
-def exec_saved_policy(env_name, policystr, num_trajs, deterministic, max_traj_len=None):
+def exec_saved_policy(env_name, policystr, num_trajs, deterministic, max_traj_len=None,render=False):
     import policyopt
     from policyopt import SimConfig, rl, util, nn, tqdm
     from environments import rlgymenv
     import gym
 
     # Load MDP and policy
-    mdp, policy, _ = load_trained_policy_and_mdp(env_name, policystr)
+    mdp, policy, _ = load_trained_policy_and_mdp(env_name, policystr,render)
     max_traj_len = min(mdp.env_spec.timestep_limit, max_traj_len) if max_traj_len is not None else mdp.env_spec.timestep_limit
 
-    print 'Sampling {} trajs (max len {}) from policy {} in {}'.format(num_trajs, max_traj_len, policystr, env_name)
+    print(('Sampling {} trajs (max len {}) from policy {} in {}'.format(num_trajs, max_traj_len, policystr, env_name)))
 
     # Sample trajs
     trajbatch = mdp.sim_mp(
@@ -178,10 +223,11 @@ def eval_snapshot(env_name, checkptfile, snapshot_idx, num_trajs, deterministic)
         policystr,
         num_trajs,
         deterministic=deterministic,
-        max_traj_len=None)
+        max_traj_len=None,
+        render=True)
     returns = trajbatch.r.padded(fill=0.).sum(axis=1)
     lengths = np.array([len(traj) for traj in trajbatch])
-    util.header('{} gets return {} +/- {}'.format(policystr, returns.mean(), returns.std()))
+    util.header('\n{} gets return {} +/- {}\n'.format(policystr, returns.mean(), returns.std()))
     return returns, lengths
 
 
@@ -207,10 +253,10 @@ def phase0_sampletrajs(spec, specfilename):
         avgr = trajbatch.r.stacked.mean()
         lengths = np.array([len(traj) for traj in trajbatch])
         ent = policy._compute_actiondist_entropy(trajbatch.adist.stacked).mean()
-        print 'ret: {} +/- {}'.format(returns.mean(), returns.std())
-        print 'avgr: {}'.format(avgr)
-        print 'len: {} +/- {}'.format(lengths.mean(), lengths.std())
-        print 'ent: {}'.format(ent)
+        print(('ret: {} +/- {}'.format(returns.mean(), returns.std())))
+        print(('avgr: {}'.format(avgr)))
+        print(('len: {} +/- {}'.format(lengths.mean(), lengths.std())))
+        print(('ent: {}'.format(ent)))
 
         # Save the trajs to a file
         with h5py.File(taskname2outfile[task['name']], 'w') as f:
@@ -267,7 +313,10 @@ def phase1_train(spec, specfilename):
         cmd_templates, outputfilenames, argdicts,
         jobname=pbsopts['jobname'], queue=pbsopts['queue'], nodes=1, ppn=pbsopts['ppn'],
         job_range=pbsopts['range'] if 'range' in pbsopts else None,
-        qsub_script_copy=os.path.join(checkptdir, 'qsub_script.sh')
+        qsub_script_copy=os.path.join(checkptdir, 'qsub_script.sh'),
+        ## added lines
+        local_script_copy=os.path.join(checkptdir, 'local_script.sh')
+        ##
     )
 
     # Copy the pipeline yaml file to the output dir too
@@ -277,7 +326,8 @@ def phase1_train(spec, specfilename):
     import subprocess
     git_hash = subprocess.check_output('git rev-parse HEAD', shell=True).strip()
     with open(os.path.join(checkptdir, 'git_hash.txt'), 'w') as f:
-        f.write(git_hash + '\n')
+        f.write(str(git_hash) + '\n')
+
 
 def phase2_eval(spec, specfilename):
     util.header('=== Phase 2: evaluating trained models ===')
@@ -288,10 +338,10 @@ def phase2_eval(spec, specfilename):
     # This is where model logs are stored.
     # We will also store the evaluation here.
     checkptdir = os.path.join(spec['options']['storagedir'], spec['options']['checkpt_subdir'])
-    print 'Evaluating results in {}'.format(checkptdir)
+    print(('Evaluating results in {}'.format(checkptdir)))
 
     results_full_path = os.path.join(checkptdir, spec['options']['results_filename'])
-    print 'Will store results in {}'.format(results_full_path)
+    print(('Will store results in {}'.format(results_full_path)))
     if os.path.exists(results_full_path):
         raise RuntimeError('Results file {} already exists'.format(results_full_path))
 
@@ -313,7 +363,7 @@ def phase2_eval(spec, specfilename):
                     evals_to_do.append((task, alg, num_trajs, run, checkptfile))
 
     if nonexistent_checkptfiles:
-        print 'Cannot find checkpoint files:\n', '\n'.join(nonexistent_checkptfiles)
+        print(('Cannot find checkpoint files:\n', '\n'.join(nonexistent_checkptfiles)))
         raise RuntimeError
 
     # Walk through all saved checkpoints
@@ -343,7 +393,7 @@ def phase2_eval(spec, specfilename):
 
             elif any(alg['name'].startswith(s) for s in ('ga', 'fem', 'simplex')):
                 # Evaluate the last saved snapshot
-                snapshot_names = f.root.snapshots._v_children.keys()
+                snapshot_names = list(f.root.snapshots._v_children.keys())
                 assert all(name.startswith('iter') for name in snapshot_names)
                 snapshot_inds = sorted([int(name[len('iter'):]) for name in snapshot_names])
                 best_snapshot_idx = snapshot_inds[-1]
@@ -388,7 +438,7 @@ def main():
     args = parser.parse_args()
 
     with open(args.spec, 'r') as f:
-        spec = yaml.load(f)
+        spec = yaml.safe_load(f)
 
     phases[args.phase](spec, args.spec)
 

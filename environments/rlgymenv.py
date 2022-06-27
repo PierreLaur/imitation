@@ -9,11 +9,12 @@ import logging; logging.getLogger('gym.core').addHandler(logging.NullHandler())
 
 
 class RLGymSim(policyopt.Simulation):
-    def __init__(self, env_name):
+    def __init__(self, env_name, render=False):
         self.env = envs.make(env_name)
         self.action_space = self.env.action_space
         self.curr_obs = self.env.reset()
         self.is_done = False
+        self.render = render
 
     def step(self, action):
         if isinstance(self.action_space, spaces.Discrete):
@@ -25,6 +26,10 @@ class RLGymSim(policyopt.Simulation):
             assert action.ndim == 1 and action.dtype == np.float64
 
         self.curr_obs, reward, self.is_done, _ = self.env.step(action)
+        ## added lines
+        #if self.render :
+        self.env.render()
+        ##
         return reward
 
     @property
@@ -51,7 +56,13 @@ class RLGymSim(policyopt.Simulation):
 def _convert_space(space):
     '''Converts a rl-gym space to our own space representation'''
     if isinstance(space, spaces.Box):
-        assert space.low.ndim == 1 and space.low.shape >= 1
+
+        ## deleted lines 
+        # assert space.low.ndim == 1 and space.low.shape >= 1
+        ##
+        ## added lines
+        assert space.low.ndim == 1 and space.low.shape[0] >= 1
+        ##
         return policyopt.ContinuousSpace(dim=space.low.shape[0])
     elif isinstance(space, spaces.Discrete):
         return policyopt.FiniteSpace(size=space.n)
@@ -59,11 +70,12 @@ def _convert_space(space):
 
 
 class RLGymMDP(policyopt.MDP):
-    def __init__(self, env_name):
-        print 'Gym version:', gym.version.VERSION
+    def __init__(self, env_name,render=False):
+        print('Gym version:', gym.version.VERSION)
         self.env_name = env_name
+        self.render = render
 
-        tmpsim = self.new_sim()
+        tmpsim = self.new_sim(render=self.render)
         self._obs_space = _convert_space(tmpsim.env.observation_space)
         self._action_space = _convert_space(tmpsim.env.action_space)
         self.env_spec = tmpsim.env.spec
@@ -77,6 +89,6 @@ class RLGymMDP(policyopt.MDP):
     def action_space(self):
         return self._action_space
 
-    def new_sim(self, init_state=None):
+    def new_sim(self, init_state=None,render=False):
         assert init_state is None
-        return RLGymSim(self.env_name)
+        return RLGymSim(self.env_name,render)
