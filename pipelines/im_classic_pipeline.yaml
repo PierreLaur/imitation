@@ -40,7 +40,6 @@ training:
         --sim_batch_size 1
         --log {out}
 
-    # cut max_iter for testing purposes (original 301)
     # Generative adversarial (neural network adversary)
     - name: ga
       cmd: >
@@ -51,7 +50,7 @@ training:
         --data_subsamp_freq {data_subsamp_freq}
         --favor_zero_expert_reward {cuts_off_on_success}
         --min_total_sa 5000
-        --max_iter 50
+        --max_iter 301
         --sim_batch_size 1
         --reward_include_time 0
         --log {out}

@@ -4,9 +4,7 @@ import policyopt
 import gym
 from gym import spaces, envs
 
-## deleted lines
-# gym.undo_logger_setup()
-##
+gym.undo_logger_setup()
 import logging; logging.getLogger('gym.core').addHandler(logging.NullHandler())
 
 
@@ -47,10 +45,10 @@ class RLGymSim(policyopt.Simulation):
         if track_body_name is not None and track_body_name in self.env.model.body_names:
             self.env.viewer.cam.trackbodyid = self.env.model.body_names.index(track_body_name)
 
-    def __del__(self):
     ## deleted lines 
-       if self.env.viewer:
-           self.env.viewer.close()
+    def __del__(self):
+      if self.env.viewer:
+          self.env.viewer.finish()
     ##
 
     def reset(self):

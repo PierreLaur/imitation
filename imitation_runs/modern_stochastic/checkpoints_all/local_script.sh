@@ -1,2 +1,4 @@
 #!/bin/bash
-python3 -m scripts.imitate_mj --mode bclone --env Hopper-v1 --data imitation_runs/modern_stochastic/trajs/trajs_hopper.h5 --limit_trajs 4 --data_subsamp_freq 20 --max_iter 1001 --log imitation_runs/modern_stochastic/checkpoints_all/alg=bclone,task=hopper,num_trajs=4,run=0.h5
+python3 -m scripts.imitate_mj --mode bclone --env Walker2d-v2 --data imitation_runs/modern_stochastic/trajs/trajs_walker.h5 --limit_trajs 4 --data_subsamp_freq 20 --max_iter 1001 --log imitation_runs/modern_stochastic/checkpoints_all/alg=bclone,task=walker,num_trajs=4,run=0.h5
+python3 -m scripts.imitate_mj --mode bclone --env Ant-v2 --data imitation_runs/modern_stochastic/trajs/trajs_ant.h5 --limit_trajs 4 --data_subsamp_freq 20 --max_iter 1001 --log imitation_runs/modern_stochastic/checkpoints_all/alg=bclone,task=ant,num_trajs=4,run=0.h5
+python3 -m scripts.imitate_mj --mode bclone --env HalfCheetah-v2 --data imitation_runs/modern_stochastic/trajs/trajs_halfcheetah.h5 --limit_trajs 4 --data_subsamp_freq 20 --max_iter 1001 --log imitation_runs/modern_stochastic/checkpoints_all/alg=bclone,task=halfcheetah,num_trajs=4,run=0.h5

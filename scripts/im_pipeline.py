@@ -232,7 +232,7 @@ def eval_snapshot(env_name, checkptfile, snapshot_idx, num_trajs, deterministic)
 
 
 def phase0_sampletrajs(spec, specfilename):
-    util.header('=== Phase 0: Sampling trajs from expert policies ===')
+    util.header('\n\n=== Phase 0: Sampling trajs from expert policies ===')
 
     num_trajs = spec['training']['full_dataset_num_trajs']
     util.header('Sampling {} trajectories'.format(num_trajs))
@@ -271,11 +271,11 @@ def phase0_sampletrajs(spec, specfilename):
             # # Also save args to this script
             # argstr = json.dumps(vars(args), separators=(',', ':'), indent=2)
             # f.attrs['args'] = argstr
-        util.header('Wrote {}'.format(taskname2outfile[task['name']]))
+        util.header('Wrote {}\n\n'.format(taskname2outfile[task['name']]))
 
 
 def phase1_train(spec, specfilename):
-    util.header('=== Phase 1: training ===')
+    util.header('\n\n=== Phase 1: training ===')
 
     # Generate array job that trains all algorithms
     # over all tasks, for all dataset sizes (3 loops)
@@ -330,7 +330,7 @@ def phase1_train(spec, specfilename):
 
 
 def phase2_eval(spec, specfilename):
-    util.header('=== Phase 2: evaluating trained models ===')
+    util.header('\n\n=== Phase 2: evaluating trained models ===')
     import pandas as pd
 
     taskname2dset = gen_taskname2outfile(spec)

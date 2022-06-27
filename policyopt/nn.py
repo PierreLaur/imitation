@@ -164,7 +164,9 @@ class Model(object, metaclass=abc.ABCMeta):
 
             for v in self.get_all_variables():
                 assert v.name[0] == '/'; vname = v.name[1:]
-                print('Reading', vname)
+                ## deleted lines
+                # print('Reading', vname)
+                ##
                 if vname in dset:
                     v.set_value(dset[vname][...])
                 elif vname+':0' in dset:
@@ -208,7 +210,9 @@ class ReshapeLayer(Layer):
 class AffineLayer(Layer):
     def __init__(self, input_B_Di, input_shape, output_shape, initializer):
         assert len(input_shape) == len(output_shape) == 1
-        util.header('Affine(in=%d, out=%d)' % (input_shape[0], output_shape[0]))
+        ## deleted lines
+        #util.header('Affine(in=%d, out=%d)' % (input_shape[0], output_shape[0]))
+        ##
         self._output_shape = (output_shape[0],)
         with variable_scope(type(self).__name__) as self.__varscope:
             if initializer is None:
@@ -233,7 +237,9 @@ class AffineLayer(Layer):
 
 class NonlinearityLayer(Layer):
     def __init__(self, input_B_Di, output_shape, func):
-        util.header('Nonlinearity(func=%s)' % func)
+        ##
+        #util.header('Nonlinearity(func=%s)' % func)
+        ##
         self._output_shape = output_shape
         with variable_scope(type(self).__name__) as self.__varscope:
             self._output_B_Do = {
@@ -272,8 +278,11 @@ class FeedforwardNet(Layer):
         self.input_B_Di = input_B_Di
 
         layerspec = json.loads(layerspec_json)
-        util.header('Loading feedforward net specification')
-        print(json.dumps(layerspec, indent=2, separators=(',', ': ')))
+        ## deleted lines
+        # util.header('Loading feedforward net specification')
+        # print(json.dumps(layerspec, indent=2, separators=(',', ': ')))
+        ##
+
 
         self.layers = []
         with variable_scope(type(self).__name__) as self.__varscope:
