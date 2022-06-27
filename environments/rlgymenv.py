@@ -3,8 +3,13 @@ import policyopt
 
 import gym
 from gym import spaces, envs
+import glfw
 
-gym.undo_logger_setup()
+try:
+    gym.undo_logger_setup()
+except AttributeError:
+    print("Ignored AttributeError caused by deprecated function from earlier Gym version")
+
 import logging; logging.getLogger('gym.core').addHandler(logging.NullHandler())
 
 
@@ -47,8 +52,11 @@ class RLGymSim(policyopt.Simulation):
 
     ## deleted lines 
     def __del__(self):
-      if self.env.viewer:
-          self.env.viewer.finish()
+        if self.env.viewer:
+            try :
+                self.env.viewer.finish()
+            except AttributeError:
+                glfw.destroy_window(self.env.viewer.window)
     ##
 
     def reset(self):
